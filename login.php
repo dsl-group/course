@@ -16,16 +16,34 @@
         <div class="col-md-4">
             <?php
             session_start();
+            define("DIR", "/var/www/luka/data/www/dsl-group.com/");
+            define("FILE", "file.txt");
             $base = array('test@mail.ru' => '123456', 'test@gmail.com' => '111222');
             $action = (!empty($_REQUEST['action']) ? $_REQUEST['action'] : '');
             if($action == 'logout') {
                 session_destroy();
+
+                //$file = 'logout: ' . date("Y-m-d H:i:s");
+                $file = array($_SESSION['email'], date("Y-m-d H:i:s"), 'logout');
+                $handler = fopen(DIR . FILE, "a");
+                //fputs($handler, $file . PHP_EOL);
+                fputcsv($handler, $file, ';');
+                fclose($handler);
+
                 header ("Location: login.php");
             }
             if(!empty($_POST['authorization']) && !empty($_POST['email']) && !empty($_POST['password'])) {
                 if (array_key_exists($_POST['email'], $base)) {
                     if($base[$_POST['email']] == $_POST['password']) {
                         $_SESSION['email'] = $_POST['email'];
+
+                        //$file = 'login: ' . date("Y-m-d H:i:s");
+                        $file = array($_SESSION['email'], date("Y-m-d H:i:s"), 'login');
+                        $handler = fopen(DIR . FILE, "a");
+                        //fputs($handler, $file . PHP_EOL);
+                        fputcsv($handler, $file, ';');
+                        fclose($handler);
+
                     } else {
                         echo '<div class="alert alert-danger" role="alert">Невірно введений пароль</div>';
                     }
@@ -59,6 +77,60 @@
             <?php endif; ?>
         </div>
         <div class="col-md-3"></div>
+        <div class="col-md-12"><p></p></div>
+        <div class="col-md-2"></div>
+        <div class="col-md-6">
+            <table class="table table-striped">
+                <thead>
+                <tr>
+                    <th scope="col">#</th>
+                    <th scope="col">login</th>
+                    <th scope="col">date</th>
+                    <th scope="col">action</th>
+                </tr>
+                </thead>
+                <tbody>
+                <?php
+
+                if($action == 'truncate') {
+                    $handler = fopen(DIR . FILE, "w");
+                    fclose($handler);
+                }
+
+                if($action == 'deleteid' && !empty($_GET['id'])) {
+                    $oldFile = file(DIR . FILE);
+                    unset($oldFile[$_GET['id']]);
+                    $newFile = fopen(DIR . FILE, "w+");
+                    foreach($oldFile as $string) {
+                        fwrite($newFile, $string);
+                    }
+                    fclose($newFile);
+                    header ("Location: login.php");
+                }
+
+                $str = 0;
+                $handler = fopen(DIR . FILE, "r");
+                while (!feof($handler)) {
+                    $csvFile = fgetcsv($handler, '', ';');
+                    if($csvFile[0]) {
+                        echo '<tr>
+					  <th scope="row">' . $str . '</th>
+					  <td>' . $csvFile[0] . '</td>
+					  <td>' . $csvFile[1] . '</td>
+					  <td>' . $csvFile[2] . '</td>
+					  <td><a href="login.php?action=deleteid&id=' . $str . '">x</a></td>
+					</tr>' . PHP_EOL;
+                    }
+                    $str++;
+                }
+                fclose($handler);
+
+                ?>
+                </tbody>
+            </table>
+            <p><a href="login.php?action=truncate">Очистка файла</a></p>
+        </div>
+        <div class="col-md-4"></div>
     </div>
 </div>
 <script>
