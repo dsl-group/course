@@ -4,15 +4,125 @@ ini_set('display_errors', '1');
 ini_set('display_startup_errors', '1');
 error_reporting(E_ALL);
 
+session_start();
+
 ?><!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <title>Login Page</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
-    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+    <!-- <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script> -->
     <script src="https://cdn.jsdelivr.net/npm/popper.js@1.14.7/dist/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+    <!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script> -->
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.js" integrity="sha256-eKhayi8LEQwp4NKxN+CfCh+3qOVUtJn3QNZ0TciWLP4=" crossorigin="anonymous"></script>
+    <script>
+        function appendComment(postid, name, date, message, role) {
+            let $blured = $("");
+
+            if (message.toLowerCase().includes("заборона")) {
+                console.log(message);
+                $blured = " blured";
+            } else {
+                $blured = "";
+            }
+
+            $("#list-of-messages").append(
+                "<li class='list-group-item" + $blured + "' id='postid" + postid + "'><strong>" + name + "</strong> at " + date + ": <i>" + message + "</i>" + role + "</li>"
+            );
+        }
+
+        $(document).ready(function () {
+
+            $.ajax({
+                url: 'messages.php',
+                method: 'GET',
+                data: { action: 'list' },
+                success: function (request) {
+                    if (request.data) {
+                        console.log(request.data);
+                        request.data.map(function (comment) {
+                            appendComment(comment.postid, comment.name, comment.date, comment.message, comment.role);
+                        })
+                    }
+                }
+            })
+
+            $("form[name='chat']").submit(function (event) {
+                event.preventDefault();
+
+                //let data1 = $(this).serialize();
+                //let data2 = {
+                //	   name: $(this).find('input[name="name"]').val(),
+                //	message: $(this).find('input[name="message"]').val()
+                //};
+                //console.log('Variant 1 :' + data1);
+                //console.log('Variant 2 :');
+
+                let message = $(this).find('input[name="message"]').val();
+                console.log(message);
+
+                $.ajax({
+                    url: 'messages.php',
+                    method: 'POST',
+                    data: { action: 'createMessage', message: message },
+                    /*
+                    success: function (request) {
+                        appendComment('<?= $_SESSION['name'] ?>', new Date().toLocaleString(), message, '<?= $_SESSION['role'] ?>');
+							$("form[name='chat']").trigger("reset");
+						}
+						*/
+                    success: function () {
+                        // После успешной отправки, делаем запрос для получения нового комментария из базы
+                        $.ajax({
+                            url: 'messages.php',
+                            method: 'GET',
+                            data: { action: 'selectID', message: message },
+                            success: function (response) {
+                                // Проверяем, есть ли данные в ответе
+                                if (response.data) {
+                                    // Получаем данные нового комментария из базы
+                                    console.log(response.data);
+                                    response.data.map(function (comment) {
+                                        appendComment(comment.postid, comment.name, comment.date, comment.message, comment.role);
+                                    })
+                                }
+                                $("form[name='chat']").trigger("reset");
+                            }
+                        });
+                    }
+                })
+            })
+
+        });
+
+        $(document).on('click', '.deleteMessage', function (event) {
+            event.preventDefault();
+
+            var messageId = $(this).attr('href').split('=')[1];
+
+            $.ajax({
+                url: 'messages.php',
+                method: 'GET',
+                data: { action: 'deleteMessage', id: messageId },
+                success: function (response) {
+                    if (response.success) {
+                        $('#postid' + messageId).remove();
+                    } else {
+                        console.log('Ошибка при удалении сообщения');
+                    }
+                }
+            });
+        });
+
+    </script>
+    <style>
+        .blured {
+            filter: blur(5px);
+        }
+    </style>
 </head>
 <body>
 <div class="container">
@@ -21,73 +131,13 @@ error_reporting(E_ALL);
         <div class="col-md-3"></div>
         <div class="col-md-4">
             <?php
-            session_start();
+
             define("DIR", __DIR__ . "/"); // поправил по Вашей рекомендации
             define("FILE", "file.txt");
+
             $base = array('test@mail.ru' => '123456', 'test@gmail.com' => '111222');
 
-            function getPDO() { // отказался от getPDO(): PDO, т.к. PHP 5.6 не поддерживает строгую типизацию
-                $host = 'localhost';
-                $username = 'lessonsusr';
-                $password = 'B9a0Q6y9';
-                $dbName = 'lessons';
-
-                try {
-                    $pdo = new PDO("mysql:host=$host;dbname=$dbName", $username, $password);
-                    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-
-                    return $pdo;
-                } catch (PDOException $e) {
-                    // Обработка ошибки, например, логирование или вывод сообщения
-                    echo '<div class="alert alert-danger" role="alert">Ошибка подключения к базе данных: ' . $e->getMessage() . '</div>';
-                }
-            }
-
-            function getAllMessages(PDO $pdo) {
-                $data = [];
-                $sql = "SELECT m.postid, m.userid, m.message, m.date, u.userid, u.name, u.email, u.role FROM messages m, users u WHERE m.userid = u.userid";
-                $statement = $pdo->prepare($sql);
-                $statement->execute();
-
-                $data = $statement->fetchAll(PDO::FETCH_ASSOC);
-
-                return $data;
-            }
-
-            function addNewMessage(PDO $pdo, $message) { // php 5.6 ругается на string
-                $sql = "INSERT INTO messages (userid, message) VALUES (:userid, :message)";
-                $queryRunner = $pdo->prepare($sql);
-                $queryRunner->bindValue(':userid', $_SESSION['userid']);
-                $queryRunner->bindValue(':message', $message);
-
-                if (!$queryRunner->execute()) {
-                    echo 'Something went wrong';
-                }
-            }
-
-            function deleteMessage($pdo, $postid) { // php 5.6 ругается на string
-                $sql = "DELETE FROM messages WHERE postid=:postid";
-                $queryRunner = $pdo->prepare($sql);
-                if (!$queryRunner->execute(['postid' => $postid])) {
-                    echo 'Something went wrong';
-                }
-            }
-
-            function getAutorization(PDO $pdo, $email, $password) {
-                $sqlUserRequest = "SELECT userid, name, email, password, role FROM users WHERE email = :email";
-                $sqlUserResult = $pdo->prepare($sqlUserRequest);
-
-                $sqlUserResult->bindValue(':email', $email);
-                $sqlUserResult->execute();
-
-                $userData = $sqlUserResult->fetch(PDO::FETCH_ASSOC);
-
-                if ($userData && password_verify($password, $userData['password'])) {
-                    return $userData;
-                } else {
-                    return null;
-                }
-            }
+            require_once('db.php');
 
             $pdo = getPDO();
             /*
@@ -102,16 +152,16 @@ error_reporting(E_ALL);
             $stmt->execute();
             */
             // Add new
-            if (!empty($_POST['message'])) {
-                addNewMessage($pdo, htmlspecialchars($_POST['message']));
-            }
+            //if (!empty($_POST['message'])) {
+            //	addNewMessage($pdo, htmlspecialchars($_POST['message']));
+            //}
 
             // Delete
-            if (!empty($_GET['delete_message'])) {
-                deleteMessage($pdo, $_GET['delete_message']);
-            }
+            //if (!empty($_GET['delete_message'])) {
+            //	deleteMessage($pdo, $_GET['delete_message']);
+            //}
 
-            $messages = getAllMessages($pdo);
+            // $messages = getAllMessages($pdo);
 
             $action = (!empty($_REQUEST['action']) ? $_REQUEST['action'] : '');
             if($action == 'logout') {
@@ -168,7 +218,7 @@ error_reporting(E_ALL);
             <?php if(!empty($_SESSION['email'])): ?>
                 <div class="alert alert-light" role="alert">Ви намагались залогінитись з Email:<br /><?= $_SESSION['email']; ?> | <a href="login.php?action=logout">Выход</a></div>
             <?php else: ?>
-                <form action="login.php" method="post">
+                <form action="login.php" name="login" method="post">
                     <div class="form-group">
                         <label for="exampleInputEmail1">Email</label>
                         <input type="email" name="email" class="form-control" id="exampleInputEmail1" aria-describedby="emailHelp" placeholder="Введите E-mail" pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,4}$" />
@@ -196,17 +246,8 @@ error_reporting(E_ALL);
                 <div class="card-header">
                     Chat
                 </div>
-                <ul class="list-group list-group-flush">
-                    <?php foreach ($messages as $message) : ?>
-                        <li class="list-group-item">
-                            <strong><?= $message['name'] ?></strong> at
-                            <?= $message['date'] ?> :
-                            <i><?= $message['message'] ?></i>
-                            <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin') : ?>
-                                <a href="?delete_message=<?= $message['postid'] ?>">X</a>
-                            <?php endif; ?>
-                        </li>
-                    <?php endforeach; ?>
+                <ul class="list-group list-group-flush" id="list-of-messages">
+
                 </ul>
             </div>
             <?php if(!empty($_SESSION['email'])): ?>
@@ -217,7 +258,7 @@ error_reporting(E_ALL);
                     </div>
                     <ul class="list-group list-group-flush">
                         <li class="list-group-item">
-                            <form method="post">
+                            <form method="post" name="chat">
                                 <div class="mb-3">
                                     <label for="exampleInputName" class="form-label">Type message this:</label>
                                     <input type="text" class="form-control" name="message" />
